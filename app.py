@@ -1,30 +1,38 @@
 from flask import Flask, request, jsonify
-import pandas as pd
-from strategy import generate_signals
-from backtest import backtest
-from metrics import metrics
+import subprocess
+import json
 
 app = Flask(__name__)
 
+# Ruta básica
 @app.route("/")
 def home():
-    return "Servidor activo 🚀"
+    return "Servidor funcionando 🚀"
 
+
+# 🔥 BACKTEST REAL
 @app.route("/backtest", methods=["POST"])
-def run_backtest():
-    file = request.files["file"]
-    df = pd.read_csv(file)
+def backtest():
 
-    df = generate_signals(df)
+    try:
+        # Ejecuta tu comando CLI
+        result = subprocess.run(
+            ["python", "main.py", "--synthetic", "--bars", "100000", "--strategy", "ema_cross"],
+            capture_output=True,
+            text=True
+        )
 
-    final_balance, trades = backtest(df)
+        output = result.stdout
 
-    result = metrics(trades, 10000, final_balance)
+        # 🔥 Aquí puedes mejorar el parseo según tu main.py
+        # Por ahora devolvemos texto crudo
+        return jsonify({
+            "status": "ok",
+            "output": output
+        })
 
-    return jsonify(result)
-
-import os
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        })
