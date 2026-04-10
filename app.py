@@ -15,37 +15,56 @@ HTML = """
 </head>
 <body style="background:#0f172a; color:white; text-align:center; font-family:sans-serif;">
 
-    <h1>🔥 Backtester XAUUSD</h1>
+from flask import Flask
+import subprocess
 
-    <form method="post">
-        <button type="submit">Ejecutar Estrategia</button>
-    </form>
+app = Flask(__name__)
 
-    <pre>{{ resultado }}</pre>
-
-</body>
-</html>
-"""
-
-@app.route("/", methods=["GET", "POST"])
+# =========================
+# 🧩 FRONTEND SIMPLE
+# =========================
+@app.route('/')
 def home():
-    resultado = ""
+    return '''
+    <h1>Backtester XAUUSD</h1>
+    <button onclick="runStrategy()">Ejecutar Estrategia</button>
+    <pre id="output" style="background:#111;color:#0f0;padding:10px;"></pre>
 
-    if request.method == "POST":
-        try:
-            result = subprocess.run(
-                ["python", "main.py", "--synthetic", "--bars", "100000", "--strategy", "ema_cross"],
-                capture_output=True,
-                text=True
-            )
-            resultado = result.stdout
-        except Exception as e:
-            resultado = str(e)
+    <script>
+    function runStrategy() {
+        document.getElementById('output').innerText = "Ejecutando estrategia...";
 
-    return render_template_string(HTML, resultado=resultado)
+        fetch('/run', { method: 'POST' })
+        .then(res => res.text())
+        .then(data => {
+            document.getElementById('output').innerText = data;
+        })
+        .catch(err => {
+            document.getElementById('output').innerText = "Error: " + err;
+        });
+    }
+    </script>
+    '''
+
+# =========================
+# 🚀 BACKEND (EJECUTA TU BOT)
+# =========================
+@app.route('/run', methods=['POST'])
+def run():
+    try:
+        result = subprocess.check_output(
+            ["python", "main.py", "--synthetic", "--bars", "100000", "--strategy", "ema_cross"],
+            stderr=subprocess.STDOUT
+        )
+        return result.decode('utf-8')
+    except Exception as e:
+        return f"Error ejecutando estrategia:\\n{str(e)}"
 
 
-import os
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+# =========================
+# 🔥 CORRER EN RENDER
+# =========================
+if __name__ == '__main__':
+    import os
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
